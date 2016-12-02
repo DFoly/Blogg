@@ -4,9 +4,13 @@
 {% block title %}Flasky - Register{% endblock %}
 
 {% block page_content %}
-<div class="page-header">
+<div class="page-header"  style = "margin-top:100px;">
     <h1>Register</h1>
 </div>
+
+<!-- creates 3 small columns on page
+allows breakpoints so th screen can 
+change size and display changes with it--> 
 <div class="col-md-4">
     {{ wtf.quick_form(form) }}
 </div>
