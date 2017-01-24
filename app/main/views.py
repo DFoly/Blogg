@@ -1,4 +1,5 @@
-from flask import render_template, redirect, url_for, abort, flash
+from flask import render_template, redirect, url_for, abort, flash, \
+        request, current_app
 from flask_login import login_required, current_user
 from . import main
 from .forms import EditProfileForm, EditProfileAdminForm, PostForm
@@ -6,7 +7,7 @@ from .. import db
 from ..models import Permission, Role, User, Post
 from ..decorators import admin_required
 
-
+#home page
 @main.route('/', methods=['GET', 'POST'])
 def index():
     form = PostForm()
@@ -17,7 +18,14 @@ def index():
         db.session.add(post)
         return redirect(url_for('.index'))
     posts = Post.query.order_by(Post.timestamp.desc()).all()
-    return render_template('index.html', form=form, posts=posts)
+    # changes to support pagination on homepage
+    page = request.args.get('page', 1, type = int)
+    pagination = Post.query.order_by(Post.timestamp.desc()).paginate(
+                page, per_page = current_app.config['BLOGG_POSTS_PER_PAGE'],
+                error_out = False)
+    posts = pagination.items
+    return render_template('index.html', form=form, posts=posts, 
+                            pagination = pagination)
 
 
 @main.route('/user/<username>')
