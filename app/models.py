@@ -5,6 +5,8 @@ from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from flask import current_app, request
 from flask_login import UserMixin, AnonymousUserMixin
 from . import db, login_manager
+from markdown import markdown
+import bleach
 
 
 class Permission:
@@ -220,6 +222,7 @@ class Post(db.Model):
     body = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    body_html = db.Column(db.Text)
 
     @staticmethod
     def generate_fake(count=100):
@@ -236,4 +239,18 @@ class Post(db.Model):
                     author = u)
             db.session.add(p)
             db.session.commit()
+
+
+    @staticmethod
+    # initial conversion to markdown, clean removes any tags not in allowed
+    # tags. linkify converts urls in plain text to proper html links
+    def on_changed_body(target, value, oldvalue, initiator):
+        allowed_tags = ['a', 'abbr', 'acronym', 'b', 'blockquote', 'code',
+                        'em', 'i', 'li', 'ol', 'pre', 'strong', 'ul',
+                        'h1', 'h2', 'h3', 'p']
+        target.body_html = bleach.linkify(bleach.clean(markdown(value, output_format = 'html'),
+                            tags = allowed_tags, strip = True))
+
+
+db.event.listen(Post.body, 'set', Post.on_changed_body)
 
