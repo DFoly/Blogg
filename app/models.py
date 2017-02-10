@@ -2,7 +2,7 @@ from datetime import datetime
 import hashlib
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
-from flask import current_app, request
+from flask import current_app, request, url_for
 from flask_login import UserMixin, AnonymousUserMixin
 from . import db, login_manager
 from markdown import markdown
@@ -25,6 +25,7 @@ class Role(db.Model):
     permissions = db.Column(db.Integer)
     users = db.relationship('User', backref='role', lazy='dynamic')
 
+    # does not take instance or class as first argument (no self)
     @staticmethod
     def insert_roles():
         roles = {
@@ -65,6 +66,7 @@ class User(UserMixin, db.Model):
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow)
     avatar_hash = db.Column(db.String(32))
     posts = db.relationship('Post', backref='author', lazy='dynamic')
+    comments = db.relationship('Comment', backref = 'author', lazy = 'dynamic')
 
 
     #adds fake blog post data
@@ -223,6 +225,7 @@ class Post(db.Model):
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     body_html = db.Column(db.Text)
+    comments = db.relationship('Comment', backref = 'post', lazy = 'dynamic')
 
     @staticmethod
     def generate_fake(count=100):
@@ -253,4 +256,24 @@ class Post(db.Model):
 
 
 db.event.listen(Post.body, 'set', Post.on_changed_body)
+
+
+class Comment(db.Model):
+    __tablename__ = 'comments'
+    id =db.Column(db.Integer, primary_key =True)
+    body = db.Column(db.Text)
+    body_html = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, index = True, default = datetime.utcnow)
+    disabled = db.Column(db.Boolean)
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'))
+
+    @staticmethod
+    def on_changed_body(target, value, oldvalue, initiator):
+        allowed_tage = ['a', 'abbr', 'acronym', 'b', 'code', 'em', 'i','strong']
+        taget.body_html = bleach.linkify(bleach.clean(markdown(value,
+                            output_format='html'),
+                            tags = allowed_tags, strip=True))
+db.event.listen(Comment.body, 'set', Comment.on_changed_body)
+
 

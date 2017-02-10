@@ -2,7 +2,7 @@ from flask import render_template, redirect, url_for, abort, flash, \
         request, current_app
 from flask_login import login_required, current_user
 from . import main
-from .forms import EditProfileForm, EditProfileAdminForm, PostForm
+from .forms import EditProfileForm, EditProfileAdminForm, PostForm, CommentForm
 from .. import db
 from ..models import Permission, Role, User, Post
 from ..decorators import admin_required
@@ -85,7 +85,22 @@ def edit_profile_admin(id):
 @main.route('/post/<int:id>')
 def post(id):
     post = Post.query.get_or_404(id)
-    return render_template('post.html', posts = [post])
+    form = CommentForm()
+    if form.validate_on_submit():
+        comment = Comment(body = form.body.data, 
+            post = post, author = current_user._get_current_object())
+        db.session.add(comment)
+        flash('Your comment has been published')
+        return redirect(url_for('.post', id = post.id, page = -1))
+    if page == -1:
+        page = (posts.comments.counts() - 1) // \
+            current_app.config['BLOGG_COMMENTS_PER_PAGE'] + 1
+    pagination = posts.comments.order_by(Comment.timestamp.asc()).paginate(
+        page, per_page =  current_app.config['BLOGG_COMMENTS_PER_PAGE'],
+        error_out = False)
+    comments = pagination.items
+    return render_template('post.html', posts = [post], form = form,
+                            comments = comments, pagination = pagination)
 
 
 # route to blog post editor
@@ -101,6 +116,6 @@ def edit(id):
         post.body = form.body.data
         db.session.add(post)
         flash('The Post has been updated')
-        return redirect(url_for('post', id = post.id))
+        return redirect(url_for('.post', id = post.id))
     form.body.data = post.body
-    return redirect('edit_post.html', form = form)
+    return render_template('edit_post.html', form = form)

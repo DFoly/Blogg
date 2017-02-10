@@ -54,3 +54,9 @@ class PostForm(Form):
     # pagedownfield allows markdown language
     body = PageDownField("What's on your mind?", validators=[Required()])
     submit = SubmitField('Submit')
+
+
+class CommentForm(Form):
+    body = StringField('Enter Your Comment', validators = [Required()])
+    submit = SubmitField('Submit')
+
