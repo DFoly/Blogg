@@ -5,7 +5,7 @@ from . import main
 from .forms import EditProfileForm, EditProfileAdminForm, PostForm, CommentForm
 from .. import db
 from ..models import Permission, Role, User, Post
-from ..decorators import admin_required
+from ..decorators import admin_required, permission_required
 
 #home page
 @main.route('/', methods=['GET', 'POST'])
@@ -16,6 +16,7 @@ def index():
         post = Post(body=form.body.data,
                     author=current_user._get_current_object())
         db.session.add(post)
+        # dot relative redirect 
         return redirect(url_for('.index'))
     posts = Post.query.order_by(Post.timestamp.desc()).all()
     # changes to support pagination on homepage
@@ -119,3 +120,19 @@ def edit(id):
         return redirect(url_for('.post', id = post.id))
     form.body.data = post.body
     return render_template('edit_post.html', form = form)
+
+
+@main.route('/follow/<username>')
+@login_required
+@permission_required(Permission.FOLLOW)
+def follow(username):
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        flash('invalid user.')
+        return redirect(url_for('.index'))
+    if current_user.is_following(user):
+        flash('You are already following this user.')
+        return redirect(url_for('.user', username = username))
+    current_user.follow(user)
+    flash('Your are now following %s' % username)
+    return redirect(url_for('.user', username = username))
